@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ورود به داشبورد</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vazir-font@33.0.0/dist/font-face.css" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Vazir', sans-serif; 
+            background: linear-gradient(to right, #1e3a8a, #3b82f6);
+        }
+        .login-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .loading {
+            display: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="login-container p-8 rounded-lg shadow-lg w-full max-w-md border border-gray-200">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">ورود به سیستم اخبار</h1>
+            <p class="text-gray-600 text-sm mt-2">سامانه مدیریت و انتشار اخبار بین‌المللی</p>
+        </div>
+        
+        <div class="space-y-4">
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700 mb-1">نام کاربری</label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                    placeholder="نام کاربری خود را وارد کنید"
+                    autocomplete="username"
+                >
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">رمز عبور</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                    placeholder="رمز عبور خود را وارد کنید"
+                    autocomplete="current-password"
+                >
+            </div>
+            
+            <button 
+                onclick="login()" 
+                class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 flex items-center justify-center"
+                id="login-btn"
+            >
+                <span id="btn-text">ورود به سیستم</span>
+                <div id="loading-spinner" class="loading ml-2">
+                    <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+            </button>
+        </div>
+        
+        <div id="error" class="hidden mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 text-red-500 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                </svg>
+                <span class="text-red-700 text-sm">نام کاربری یا رمز عبور اشتباه است</span>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-gray-200">
+            <p class="text-xs text-gray-500 text-center">
+                سیستم مدیریت اخبار - نسخه ۱.۰<br>
+                تمامی حقوق محفوظ است
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // استخراج خودکار SECRET_PATH از URL فعلی
+        const getSecretPath = () => {
+            const path = window.location.pathname;
+            // استخراج اولین بخش از path (مثلاً /pnl7a3d/ -> pnl7a3d)
+            const match = path.match(/^\/([^\/]+)/);
+            return match ? match[1] : 'admin';
+        };
+
+        const SECRET_PATH = getSecretPath();
+
+        function showLoading() {
+            document.getElementById('btn-text').style.display = 'none';
+            document.getElementById('loading-spinner').style.display = 'block';
+            document.getElementById('login-btn').disabled = true;
+        }
+
+        function hideLoading() {
+            document.getElementById('btn-text').style.display = 'block';
+            document.getElementById('loading-spinner').style.display = 'none';
+            document.getElementById('login-btn').disabled = false;
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                login();
+            }
+        }
+
+        // اضافه کردن event listener برای کلید Enter
+        document.getElementById('username').addEventListener('keypress', handleKeyPress);
+        document.getElementById('password').addEventListener('keypress', handleKeyPress);
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                document.getElementById('error').classList.remove('hidden');
+                document.getElementById('error').querySelector('span').textContent = 'لطفا نام کاربری و رمز عبور را وارد کنید';
+                return;
+            }
+
+            showLoading();
+            
+            try {
+                const response = await fetch(`/${SECRET_PATH}/login`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (response.ok && response.redirected) {
+                    window.location.href = response.url;
+                } else if (response.status === 401) {
+                    document.getElementById('error').classList.remove('hidden');
+                    document.getElementById('error').querySelector('span').textContent = 'نام کاربری یا رمز عبور اشتباه است';
+                } else if (response.status === 400) {
+                    document.getElementById('error').classList.remove('hidden');
+                    document.getElementById('error').querySelector('span').textContent = 'رمز عبور بسیار طولانی است';
+                } else {
+                    document.getElementById('error').classList.remove('hidden');
+                    document.getElementById('error').querySelector('span').textContent = 'خطا در ارتباط با سرور';
+                }
+            } catch (error) {
+                document.getElementById('error').classList.remove('hidden');
+                document.getElementById('error').querySelector('span').textContent = 'خطا در ارتباط با سرور';
+                console.error('Login error:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // پاک کردن خطا وقتی کاربر شروع به تایپ می‌کند
+        document.getElementById('username').addEventListener('input', function() {
+            document.getElementById('error').classList.add('hidden');
+        });
+
+        document.getElementById('password').addEventListener('input', function() {
+            document.getElementById('error').classList.add('hidden');
+        });
+
+        // فوکوس خودکار روی فیلد نام کاربری
+        document.getElementById('username').focus();
+    </script>
+</body>
+</html>

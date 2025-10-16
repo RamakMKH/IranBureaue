@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>داشبورد سیستم اخبار</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vazir-font@33.0.0/dist/font-face.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Vazir', sans-serif; }
+        .bg-gradient { background: linear-gradient(to right, #1e3a8a, #3b82f6); }
+        .table-container { max-height: 400px; overflow-y: auto; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="bg-gradient text-white p-6">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-3xl font-bold">داشبورد سیستم اخبار</h1>
+            <div class="space-x-4">
+                <a href="#" id="logs-link" class="bg-white text-blue-600 px-4 py-2 rounded-lg hover:bg-gray-100 transition duration-200">
+                    📊 مشاهده لاگ‌ها
+                </a>
+                <a href="#" id="advanced-crawl-link" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition duration-200">
+                    🔍 کراول پیشرفته
+                </a>
+                <form id="logout-form" method="POST" class="inline">
+                    <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition duration-200">
+                        🚪 خروج
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-6">
+        <!-- کارت‌های آمار سریع -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow-lg p-6 text-center">
+                <div class="text-3xl font-bold text-blue-600" id="total_news">-</div>
+                <div class="text-sm text-gray-600">کل اخبار</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-lg p-6 text-center">
+                <div class="text-3xl font-bold text-yellow-600" id="pending_news">-</div>
+                <div class="text-sm text-gray-600">در انتظار ترجمه</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-lg p-6 text-center">
+                <div class="text-3xl font-bold text-purple-600" id="queue_news">-</div>
+                <div class="text-sm text-gray-600">در صف انتشار</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-lg p-6 text-center">
+                <div class="text-3xl font-bold text-green-600" id="published_news">-</div>
+                <div class="text-sm text-gray-600">منتشر شده</div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-6">
+            <h2 class="text-xl font-semibold mb-4">فیلتر اخبار</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <input type="text" id="filter_lang" class="px-3 py-2 border rounded-md" placeholder="زبان (مثال: english)">
+                <input type="text" id="filter_status" class="px-3 py-2 border rounded-md" placeholder="وضعیت (مثال: collected)">
+                <input type="date" id="filter_date" class="px-3 py-2 border rounded-md">
+                <button onclick="fetchNews()" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">فیلتر</button>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-xl font-semibold mb-4">کراول سریع</h2>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">تاریخ</label>
+                        <input type="date" id="crawl_date" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">زبان</label>
+                        <select id="crawl_lang" class="w-full px-3 py-2 border rounded-md">
+                            <option value="english">انگلیسی</option>
+                            <option value="french">فرانسوی</option>
+                            <option value="arabic">عربی</option>
+                            <option value="chinese">چینی</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="crawlNews()" class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700">
+                    کراول اخبار
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg mt-6">
+            <h2 class="text-xl font-semibold mb-4">عملیات سریع</h2>
+            <div class="space-y-3">
+                <button onclick="publishNews()" class="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700">
+                    انتشار خودکار خبر
+                </button>
+                <button onclick="fetchStats()" class="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700">
+                    بروزرسانی آمار
+                </button>
+                <button onclick="clearFilters()" class="w-full bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600">
+                    پاک کردن فیلترها
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg mt-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">لیست اخبار</h2>
+                <div class="text-sm text-gray-600">
+                    <span id="news_count">در حال بارگذاری...</span>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="bg-gray-200">
+                            <th class="border p-2">شناسه</th>
+                            <th class="border p-2">عنوان</th>
+                            <th class="border p-2">زبان</th>
+                            <th class="border p-2">تاریخ انتشار</th>
+                            <th class="border p-2">وضعیت</th>
+                            <th class="border p-2">متن ترجمه شده</th>
+                            <th class="border p-2">اقدامات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="news_table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- بخش لاگ‌های مختصر -->
+        <div class="bg-white p-6 rounded-lg shadow-lg mt-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">لاگ‌های اخیر</h2>
+                <a href="#" id="all-logs-link" class="text-blue-600 hover:text-blue-800 text-sm">
+                    مشاهده همه لاگ‌ها →
+                </a>
+            </div>
+            <pre id="logs" class="bg-gray-100 p-4 rounded-md text-sm max-h-40 overflow-y-auto"></pre>
+        </div>
+    </div>
+
+    <script>
+        // استخراج خودکار SECRET_PATH از URL فعلی
+        const getSecretPath = () => {
+            const path = window.location.pathname;
+            const match = path.match(/^\/([^\/]+)/);
+            return match ? match[1] : 'admin';
+        };
+
+        const SECRET_PATH = getSecretPath();
+
+        // تنظیم لینک‌ها با SECRET_PATH
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('logs-link').href = `/${SECRET_PATH}/logs_page`;
+            document.getElementById('advanced-crawl-link').href = `/${SECRET_PATH}/advanced_crawl`;
+            document.getElementById('logout-form').action = `/${SECRET_PATH}/logout`;
+            document.getElementById('all-logs-link').href = `/${SECRET_PATH}/logs_page`;
+            
+            // بارگذاری اولیه
+            fetchNews();
+            fetchStats();
+            fetchLogs();
+        });
+
+        async function fetchNews() {
+            let params = new URLSearchParams();
+            let lang = document.getElementById('filter_lang').value;
+            let status = document.getElementById('filter_status').value;
+            let date = document.getElementById('filter_date').value;
+            if (lang) params.append('lang', lang);
+            if (status) params.append('status', status);
+            if (date) params.append('date', date);
+            
+            try {
+                const response = await fetch(`/news?${params.toString()}`);
+                const data = await response.json();
+                
+                // به‌روزرسانی تعداد اخبار
+                document.getElementById('news_count').textContent = `${data.length} خبر یافت شد`;
+                
+                let table = '';
+                data.forEach(n => {
+                    table += `<tr>
+                        <td class="border p-2">${n.id}</td>
+                        <td class="border p-2">${n.title}</td>
+                        <td class="border p-2">${n.language}</td>
+                        <td class="border p-2">${new Date(n.published).toLocaleString('fa-IR')}</td>
+                        <td class="border p-2">
+                            <span class="px-2 py-1 rounded text-xs ${
+                                n.status === 'collected' ? 'bg-gray-200' :
+                                n.status === 'approved_for_translate' ? 'bg-yellow-200' :
+                                n.status === 'ready_for_final' ? 'bg-blue-200' :
+                                n.status === 'published_queue' ? 'bg-purple-200' :
+                                n.status === 'published' ? 'bg-green-200' : 'bg-gray-200'
+                            }">${n.status}</span>
+                        </td>
+                        <td class="border p-2 text-xs">
+                            ${n.translated_summary ? `<div class="mb-2"><strong>ترجمه:</strong> ${n.translated_summary.substring(0, 100)}...</div>` : ''}
+                            ${n.edited_text ? `<div class="text-green-600"><strong>ویرایش:</strong> ${n.edited_text.substring(0, 100)}...</div>` : ''}
+                        </td>
+                        <td class="border p-2">
+                            <div class="flex flex-col space-y-2">
+                                ${n.status === 'collected' ? `<button onclick="approve(${n.id})" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 text-xs">تایید ترجمه</button>` : ''}
+                                ${n.status === 'ready_for_final' ? `<button onclick="finalApprove(${n.id})" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 text-xs">تایید نهایی</button>` : ''}
+                                ${n.status === 'published_queue' ? `<button onclick="publishNow(${n.id})" class="bg-purple-500 text-white px-2 py-1 rounded hover:bg-purple-600 text-xs">انتشار فوری</button>` : ''}
+                            </div>
+                        </td>
+                    </tr>`;
+                });
+                document.getElementById('news_table').innerHTML = table;
+            } catch (error) {
+                console.error('Error fetching news:', error);
+                document.getElementById('news_count').textContent = 'خطا در بارگذاری اخبار';
+            }
+        }
+
+        async function fetchStats() {
+            try {
+                const response = await fetch('/stats');
+                const data = await response.json();
+                
+                // به‌روزرسانی کارت‌های آمار
+                document.getElementById('total_news').textContent = data.total;
+                
+                // محاسبه آمار وضعیت‌ها
+                const statusStats = data.by_status || {};
+                document.getElementById('pending_news').textContent = 
+                    (statusStats.collected || 0) + (statusStats.approved_for_translate || 0);
+                document.getElementById('queue_news').textContent = statusStats.published_queue || 0;
+                document.getElementById('published_news').textContent = statusStats.published || 0;
+                
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        }
+
+        async function approve(id) {
+            await fetch(`/approve_translate/${id}`, {
+                method: 'POST'
+            });
+            alert('خبر برای ترجمه تایید شد');
+            fetchNews();
+            fetchStats();
+        }
+
+        async function finalApprove(id) {
+            await fetch(`/final_approve/${id}`, {
+                method: 'POST'
+            });
+            alert('خبر برای انتشار نهایی تایید شد');
+            fetchNews();
+            fetchStats();
+        }
+
+        async function publishNow(id) {
+            await fetch(`/publish_now/${id}`, {
+                method: 'POST'
+            });
+            alert('خبر منتشر شد');
+            fetchNews();
+            fetchStats();
+        }
+
+        async function crawlNews() {
+            const date = document.getElementById('crawl_date').value;
+            const lang = document.getElementById('crawl_lang').value;
+            if (!date) {
+                alert('لطفا تاریخ را انتخاب کنید');
+                return;
+            }
+            await fetch('/crawl_by_date', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date, language: lang })
+            });
+            alert('کراول شروع شد');
+            fetchNews();
+            fetchStats();
+        }
+
+        async function publishNews() {
+            await fetch('/publish_news', {
+                method: 'POST'
+            });
+            alert('فرآیند انتشار شروع شد');
+            fetchStats();
+        }
+
+        async function fetchLogs() {
+            try {
+                const response = await fetch(`/${SECRET_PATH}/logs`);
+                const logs = await response.text();
+                document.getElementById('logs').innerText = logs;
+            } catch (error) {
+                console.error('Error fetching logs:', error);
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('filter_lang').value = '';
+            document.getElementById('filter_status').value = '';
+            document.getElementById('filter_date').value = '';
+            fetchNews();
+        }
+
+        // بروزرسانی خودکار هر 2 دقیقه
+        setInterval(() => {
+            fetchNews();
+            fetchStats();
+        }, 120000);
+    </script>
+</body>
+</html>
