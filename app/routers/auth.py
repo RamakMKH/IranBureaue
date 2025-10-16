@@ -8,10 +8,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from schemas.news import AuthRequest
 from services.auth import auth_service
+from config import settings
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/pnl7a3d", tags=["authentication"])
+# Use SECRET_PATH from config instead of hardcoded value
+router = APIRouter(prefix=f"/{settings.SECRET_PATH}", tags=["authentication"])
 
 
 def get_current_user(request: Request) -> str:
@@ -24,14 +26,14 @@ def get_current_user(request: Request) -> str:
     if not session_id:
         # Redirect HTML requests, raise exception for API requests
         if request.headers.get("accept") and "text/html" in request.headers.get("accept"):
-            raise HTTPException(status_code=303, headers={"Location": "/pnl7a3d/"})
+            raise HTTPException(status_code=303, headers={"Location": f"/{settings.SECRET_PATH}/"})
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     username = auth_service.verify_session(session_id)
     
     if not username:
         if request.headers.get("accept") and "text/html" in request.headers.get("accept"):
-            raise HTTPException(status_code=303, headers={"Location": "/pnl7a3d/"})
+            raise HTTPException(status_code=303, headers={"Location": f"/{settings.SECRET_PATH}/"})
         raise HTTPException(status_code=401, detail="Invalid or expired session")
     
     return username
@@ -63,13 +65,13 @@ async def login(auth_request: AuthRequest, response: Response):
         session_id = auth_service.create_session(auth_request.username)
         
         # Redirect to dashboard with session cookie
-        redirect_response = RedirectResponse(url="/pnl7a3d/dashboard", status_code=303)
+        redirect_response = RedirectResponse(url=f"/{settings.SECRET_PATH}/dashboard", status_code=303)
         redirect_response.set_cookie(
             key="session_id",
             value=session_id,
             httponly=True,
             max_age=auth_service.session_expire_hours * 3600,
-            secure=False,  # Set to True in production with HTTPS
+            secure=settings.USE_HTTPS,  # Set based on config
             samesite="lax"
         )
         
@@ -94,7 +96,7 @@ async def logout(request: Request):
     if session_id:
         auth_service.destroy_session(session_id)
     
-    redirect_response = RedirectResponse(url="/pnl7a3d/", status_code=303)
+    redirect_response = RedirectResponse(url=f"/{settings.SECRET_PATH}/", status_code=303)
     redirect_response.delete_cookie("session_id")
     
     logger.info("User logged out")
