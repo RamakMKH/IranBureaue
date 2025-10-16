@@ -153,8 +153,8 @@ ps aux | grep main.py
 
 ```bash
 # If using git
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git iranbureau_v2
-cd iranbureau_v2
+git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git project_v2
+cd project_v2
 
 # Or download and extract
 # Then navigate to the directory
@@ -214,8 +214,8 @@ nano .env  # or use your preferred editor
 SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
 echo "SECRET_KEY=$SECRET_KEY" >> .env
 
-# 2. Set admin username (same as before)
-ADMIN_USERNAME=your_username  
+# 2. Set admin username
+ADMIN_USERNAME=your_admin_username
 
 # 3. Generate NEW password hash (IMPORTANT!)
 python setup.py
@@ -276,7 +276,7 @@ python app/main.py
 
 # You should see:
 # 🚀 Starting News Management System...
-# 🔒 Starting with SSL/HTTPS on port 2053
+# 🔒 Starting with SSL/HTTPS on YOUR_HOST:YOUR_PORT
 # 🌐 Access at: https://YOUR_DOMAIN:YOUR_PORT
 ```
 
@@ -287,7 +287,7 @@ python app/main.py
 https://YOUR_DOMAIN:YOUR_PORT/YOUR_SECRET_PATH/
 
 # Login with your credentials
-# Username: your_username (or your username)
+# Username: your_admin_username
 # Password: your password (NOT the hash!)
 ```
 
@@ -430,6 +430,7 @@ ADMIN_PASSWORD_HASH=$2b$12$...hashed...
 **New Required:**
 ```bash
 SECRET_KEY=your-32-char-secret-key
+SECRET_PATH=your-secret-admin-path
 ```
 
 ### 2. Session Management
@@ -590,7 +591,7 @@ pkill -f main.py
 
 # 2. Restore from backup
 cd ..
-rm -rf iranbureau_v2
+rm -rf project_v2
 tar -xzf backup_*/project_backup.tar.gz
 
 # 3. Restart old system
@@ -633,7 +634,7 @@ echo "Migration completed: $(date)" >> MIGRATION_LOG.md
 crontab -e
 
 # Add:
-*/5 * * * * curl -s https://YOUR_DOMAIN:YOUR_PORT/YOUR_SECRET_PATH/health
+*/5 * * * * curl -s https://YOUR_DOMAIN:YOUR_PORT/health
 ```
 
 ### 4. Schedule Backups
@@ -668,7 +669,7 @@ rm -rf backup_*
 
 ```bash
 # Update your bookmarks:
-Old: http://...
+Old: Previous URL
 New: https://YOUR_DOMAIN:YOUR_PORT/YOUR_SECRET_PATH/
 ```
 
@@ -733,6 +734,6 @@ Congratulations! You've successfully migrated to v2.0! 🚀
 
 **Welcome to News Management System v2.0!**
 
-[Report Issue](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME/issues) • [Documentation](README.md) • [Support](https://t.me/IranBureau)
+[Report Issue](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME/issues) • [Documentation](README.md) • [Contact](mailto:your-email@example.com)
 
 </div>
