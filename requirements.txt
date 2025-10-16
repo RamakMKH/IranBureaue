@@ -1,0 +1,47 @@
+# FastAPI and Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Database
+sqlalchemy==2.0.23
+alembic==1.12.1
+
+# Authentication & Security
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+bcrypt==4.1.1
+
+# HTTP & Networking
+requests==2.31.0
+httpx==0.25.1
+pysocks==1.7.1
+
+# API Clients
+deep-translator==1.11.4
+
+# Data Processing
+beautifulsoup4==4.12.2
+fuzzywuzzy==0.18.0
+python-levenshtein==0.23.0
+
+# Scheduling
+apscheduler==3.10.4
+
+# Rate Limiting
+slowapi==0.1.9
+
+# Configuration
+python-dotenv==1.0.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Logging & Monitoring
+python-json-logger==2.0.7
+
+# Development Tools (Optional)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
