@@ -153,7 +153,7 @@ ps aux | grep main.py
 
 ```bash
 # If using git
-git clone https://github.com/YourUsername/IranBureau.git iranbureau_v2
+git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git iranbureau_v2
 cd iranbureau_v2
 
 # Or download and extract
@@ -215,7 +215,7 @@ SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
 echo "SECRET_KEY=$SECRET_KEY" >> .env
 
 # 2. Set admin username (same as before)
-ADMIN_USERNAME=admin  # Your old username
+ADMIN_USERNAME=your_username  
 
 # 3. Generate NEW password hash (IMPORTANT!)
 python setup.py
@@ -277,17 +277,17 @@ python app/main.py
 # You should see:
 # 🚀 Starting News Management System...
 # 🔒 Starting with SSL/HTTPS on port 2053
-# 🌐 Access at: https://dsh.kaliroot.cf:2053
+# 🌐 Access at: https://YOUR_DOMAIN:YOUR_PORT
 ```
 
 ### Step 11: Test Login
 
 ```bash
 # Open browser
-https://dsh.kaliroot.cf:2053/pnl7a3d/
+https://YOUR_DOMAIN:YOUR_PORT/YOUR_SECRET_PATH/
 
 # Login with your credentials
-# Username: admin (or your username)
+# Username: your_username (or your username)
 # Password: your password (NOT the hash!)
 ```
 
@@ -443,7 +443,7 @@ SECRET_KEY=your-32-char-secret-key
 Most endpoints remain the same, but:
 ```bash
 # Some endpoint behaviors changed
-# Check API docs: https://dsh.kaliroot.cf:2053/docs
+# Check API docs: https://YOUR_DOMAIN:YOUR_PORT/docs
 ```
 
 ### 4. Database Schema
@@ -533,7 +533,7 @@ python app/main.py
 sqlite3 news.db "SELECT COUNT(*) FROM news;"
 
 # Verify with API
-curl https://dsh.kaliroot.cf:2053/news
+curl https://YOUR_DOMAIN:YOUR_PORT/news
 
 # Check logs
 tail -f webz.log
@@ -633,7 +633,7 @@ echo "Migration completed: $(date)" >> MIGRATION_LOG.md
 crontab -e
 
 # Add:
-*/5 * * * * curl -s https://dsh.kaliroot.cf:2053/pnl7a3d/health
+*/5 * * * * curl -s https://YOUR_DOMAIN:YOUR_PORT/YOUR_SECRET_PATH/health
 ```
 
 ### 4. Schedule Backups
@@ -669,7 +669,7 @@ rm -rf backup_*
 ```bash
 # Update your bookmarks:
 Old: http://...
-New: https://dsh.kaliroot.cf:2053/pnl7a3d/
+New: https://YOUR_DOMAIN:YOUR_PORT/YOUR_SECRET_PATH/
 ```
 
 ---
@@ -733,6 +733,6 @@ Congratulations! You've successfully migrated to v2.0! 🚀
 
 **Welcome to News Management System v2.0!**
 
-[Report Issue](https://github.com/YourUsername/IranBureau/issues) • [Documentation](README.md) • [Support](https://t.me/IranBureau)
+[Report Issue](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME/issues) • [Documentation](README.md) • [Support](https://t.me/IranBureau)
 
 </div>
