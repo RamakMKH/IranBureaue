@@ -9,7 +9,7 @@
 
 **A professional news crawling, translation, and publishing system with automated workflow**
 
-[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Documentation](#-documentation) • [Support](#-support)
+[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Documentation](#-documentation)
 
 </div>
 
@@ -22,7 +22,7 @@ News Management System is a comprehensive solution for collecting, translating, 
 ### 🌟 Key Highlights
 
 - 🕷️ **Intelligent Crawler**: Collects news from Webz.io API with duplicate detection
-- 🤖 **AI Translation**: Uses Gemini AI for high-quality Persian translation
+- 🤖 **AI Translation**: Uses Gemini AI for high-quality translation
 - 📱 **Telegram Publishing**: Automated posting to Telegram channels
 - 🎯 **Smart Scoring**: Priority-based scoring algorithm
 - 🔐 **Secure Authentication**: Session-based auth with bcrypt
@@ -98,8 +98,8 @@ News Management System is a comprehensive solution for collecting, translating, 
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/YourUsername/IranBureau.git
-cd IranBureau
+git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+cd YOUR_REPO_NAME
 ```
 
 2. **Create virtual environment**
@@ -161,7 +161,7 @@ python app/main.py
 9. **Access the dashboard**
 
 ```
-https://dsh.kaliroot.cf:2053/pnl7a3d/
+https://YOUR_DOMAIN:YOUR_PORT/YOUR_SECRET_PATH/
 ```
 
 ---
@@ -187,7 +187,7 @@ https://dsh.kaliroot.cf:2053/pnl7a3d/
 3. Click "Crawl News"
 
 # Via API
-curl -X POST https://dsh.kaliroot.cf:2053/pnl7a3d/crawl_by_date \
+curl -X POST https://YOUR_DOMAIN:YOUR_PORT/api/crawl_by_date \
   -H "Content-Type: application/json" \
   -d '{"date": "2024-01-15", "language": "english"}'
 ```
@@ -213,7 +213,7 @@ Key variables in `.env`:
 ```bash
 # Security
 SECRET_KEY=your-secret-key-32-chars-min
-ADMIN_USERNAME=admin
+ADMIN_USERNAME=your_admin_username
 ADMIN_PASSWORD_HASH=$2b$12$...
 
 # API Keys
@@ -244,19 +244,19 @@ DATABASE_URL=postgresql://user:password@localhost:5432/newsdb
 
 Once running, visit:
 
-- **Swagger UI**: https://dsh.kaliroot.cf:2053/docs
-- **ReDoc**: https://dsh.kaliroot.cf:2053/redoc
+- **Swagger UI**: https://YOUR_DOMAIN:YOUR_PORT/docs
+- **ReDoc**: https://YOUR_DOMAIN:YOUR_PORT/redoc
 
 ### Key Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/pnl7a3d/login` | POST | Login |
-| `/pnl7a3d/dashboard` | GET | Main dashboard |
-| `/news` | GET | Get news list |
-| `/pnl7a3d/crawl_by_date` | POST | Crawl news |
-| `/pnl7a3d/publish_news` | POST | Publish news |
-| `/stats` | GET | Get statistics |
+| `/auth/login` | POST | Login |
+| `/dashboard` | GET | Main dashboard |
+| `/api/news` | GET | Get news list |
+| `/api/crawl` | POST | Crawl news |
+| `/api/publish` | POST | Publish news |
+| `/api/stats` | GET | Get statistics |
 
 ---
 
@@ -265,7 +265,7 @@ Once running, visit:
 ### Project Structure
 
 ```
-IranBureau/
+project/
 ├── app/
 │   ├── main.py              # Application entry point
 │   ├── config.py            # Configuration
@@ -327,7 +327,7 @@ docker-compose down
 docker build -t news-system:latest .
 
 # Run container
-docker run -d -p 2053:2053 \
+docker run -d -p YOUR_PORT:8000 \
   --env-file .env \
   --name news-system \
   news-system:latest
@@ -340,14 +340,14 @@ docker run -d -p 2053:2053 \
 ### Health Check
 
 ```bash
-curl https://dsh.kaliroot.cf:2053/pnl7a3d/health
+curl https://YOUR_DOMAIN:YOUR_PORT/health
 ```
 
 ### View Logs
 
 ```bash
 # Via dashboard
-https://dsh.kaliroot.cf:2053/pnl7a3d/logs_page
+https://YOUR_DOMAIN:YOUR_PORT/YOUR_SECRET_PATH/logs
 
 # Via file
 tail -f webz.log
@@ -367,7 +367,7 @@ pg_dump newsdb > backup_$(date +%Y%m%d).sql
 
 ```bash
 # Via API (dry run first)
-curl -X POST "https://dsh.kaliroot.cf:2053/pnl7a3d/cleanup_old_news?days=90&dry_run=true"
+curl -X POST "https://YOUR_DOMAIN:YOUR_PORT/api/cleanup?days=90&dry_run=true"
 ```
 
 ---
@@ -428,8 +428,8 @@ python setup.py  # Option 1
 ## 📚 Documentation
 
 - **[MIGRATION.md](MIGRATION.md)**: Upgrade from v1.0 to v2.0
-- **[PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)**: Detailed structure
-- **[API Documentation](https://dsh.kaliroot.cf:2053/docs)**: Swagger UI
+- **[API Documentation](docs/API.md)**: Complete API reference
+- **Online Docs**: Available at `/docs` endpoint when running
 
 ---
 
@@ -491,10 +491,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Get Help
 
-- 📧 Email: support@iranbureau.com
-- 💬 Telegram: [@IranBureau](https://t.me/IranBureau)
-- 🐛 Issues: [GitHub Issues](https://github.com/YourUsername/IranBureau/issues)
-- 📖 Documentation: [Wiki](https://github.com/YourUsername/IranBureau/wiki)
+- 📧 Email: your-email@example.com
+- 💬 Telegram: Your telegram contact
+- 🐛 Issues: [GitHub Issues](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME/issues)
+- 📖 Documentation: [Wiki](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME/wiki)
 
 ### Reporting Bugs
 
@@ -512,8 +512,6 @@ Please include:
 
 If you find this project useful, please consider giving it a ⭐!
 
-[![Star History Chart](https://api.star-history.com/svg?repos=YourUsername/IranBureau&type=Date)](https://star-history.com/#YourUsername/IranBureau&Date)
-
 ---
 
 ## 📊 Statistics
@@ -528,9 +526,9 @@ If you find this project useful, please consider giving it a ⭐!
 
 <div align="center">
 
-**Made with ❤️ by IranBureau Team**
+**Made with ❤️ by Your Team Name**
 
-[Website](https://iranbureau.com) • [GitHub](https://github.com/YourUsername/IranBureau) • [Telegram](https://t.me/IranBureau)
+[GitHub](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME)
 
 **Version 2.0.0** | **2024** | **MIT License**
 
