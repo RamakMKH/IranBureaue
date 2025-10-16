@@ -207,7 +207,8 @@ app.include_router(admin.router)
 async def root():
     """Root endpoint - redirect to login"""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/pnl7a3d/")
+    # Use the secret path from config
+    return RedirectResponse(url=f"/{settings.SECRET_PATH}/")
 
 
 @app.get("/health")
@@ -224,27 +225,29 @@ if __name__ == "__main__":
     import uvicorn
     import os
     
-    # SSL certificates for dsh.kaliroot.cf
-    ssl_keyfile = "/etc/letsencrypt/live/dsh.kaliroot.cf/privkey.pem"
-    ssl_certfile = "/etc/letsencrypt/live/dsh.kaliroot.cf/fullchain.pem"
+    # Get SSL configuration from environment or config
+    ssl_cert_path = os.getenv("SSL_CERT_PATH", "")
+    ssl_key_path = os.getenv("SSL_KEY_PATH", "")
     
-    use_ssl = os.path.exists(ssl_keyfile) and os.path.exists(ssl_certfile)
+    use_ssl = os.path.exists(ssl_key_path) and os.path.exists(ssl_cert_path)
+    
+    # Get host and port from environment or use defaults
+    host = os.getenv("APP_HOST", "0.0.0.0")
+    port = int(os.getenv("APP_PORT", "8000"))
     
     if use_ssl:
-        logger.info("🔒 Starting with SSL/HTTPS on port 2053")
-        logger.info("🌐 Access at: https://dsh.kaliroot.cf:2053")
+        logger.info(f"🔒 Starting with SSL/HTTPS on {host}:{port}")
         uvicorn.run(
             app,
-            host="0.0.0.0",
-            port=2053,
-            ssl_keyfile=ssl_keyfile,
-            ssl_certfile=ssl_certfile
+            host=host,
+            port=port,
+            ssl_keyfile=ssl_key_path,
+            ssl_certfile=ssl_cert_path
         )
     else:
-        logger.warning("⚠️ SSL certificates not found, starting HTTP on port 2053")
-        logger.info("🌐 Access at: http://dsh.kaliroot.cf:2053")
+        logger.warning(f"⚠️ SSL certificates not found, starting HTTP on {host}:{port}")
         uvicorn.run(
             app,
-            host="0.0.0.0",
-            port=2053
+            host=host,
+            port=port
         )
