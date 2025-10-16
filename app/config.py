@@ -18,6 +18,18 @@ class Settings(BaseSettings):
     APP_NAME: str = "News Management System"
     DEBUG: bool = False
     
+    # Server Configuration
+    APP_HOST: str = os.getenv("APP_HOST", "0.0.0.0")
+    APP_PORT: int = int(os.getenv("APP_PORT", "8000"))
+    USE_HTTPS: bool = os.getenv("USE_HTTPS", "false").lower() == "true"
+    
+    # SSL Configuration
+    SSL_CERT_PATH: str = os.getenv("SSL_CERT_PATH", "")
+    SSL_KEY_PATH: str = os.getenv("SSL_KEY_PATH", "")
+    
+    # Secret Path for Admin Panel (randomized for security)
+    SECRET_PATH: str = os.getenv("SECRET_PATH", "admin")
+    
     # Database
     DATABASE_URL: str = "sqlite:///news.db"
     
@@ -82,6 +94,19 @@ class Settings(BaseSettings):
             raise ValueError("ADMIN_PASSWORD_HASH is required")
         return v
     
+    @validator("SECRET_PATH")
+    def validate_secret_path(cls, v):
+        if not v:
+            raise ValueError("SECRET_PATH is required")
+        # Remove leading/trailing slashes
+        v = v.strip("/")
+        if not v:
+            raise ValueError("SECRET_PATH cannot be empty or just slashes")
+        # Validate path format (alphanumeric, dash, underscore only)
+        if not v.replace("-", "").replace("_", "").isalnum():
+            raise ValueError("SECRET_PATH must contain only alphanumeric characters, dashes, and underscores")
+        return v
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
@@ -103,6 +128,7 @@ def validate_environment():
         "WEBZ_API_KEYS": "Webz.io API keys",
         "TELEGRAM_BOT_TOKEN": "Telegram bot token",
         "TELEGRAM_CHANNEL": "Telegram channel ID",
+        "SECRET_PATH": "Secret path for admin panel"
     }
     
     missing = []
