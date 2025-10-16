@@ -134,7 +134,7 @@ def init_database():
     print("="*50 + "\n")
     
     try:
-        from database import init_database
+        from app.database import init_database
         init_database()
         print("✅ Database initialized successfully!")
     except Exception as e:
@@ -150,7 +150,7 @@ def test_connections():
     
     # Test Telegram
     try:
-        from services.telegram import telegram_service
+        from app.services.telegram import telegram_service
         if telegram_service.test_connection():
             print("✅ Telegram: Connected")
         else:
@@ -160,8 +160,8 @@ def test_connections():
     
     # Test Webz.io
     try:
-        from config import settings
-        from utils.proxy import proxy_manager
+        from app.config import settings
+        from app.utils.proxy import proxy_manager
         import requests
         
         session = proxy_manager.create_session(timeout=10)
@@ -177,7 +177,7 @@ def test_connections():
     
     # Test Translation
     try:
-        from services.translator import translation_service
+        from app.services.translator import translation_service
         test_result = translation_service.translate("Hello world", "fa")
         if test_result:
             print("✅ Translation: Working")

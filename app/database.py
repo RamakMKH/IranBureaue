@@ -4,8 +4,8 @@ Database configuration and setup
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from config import settings
-from models.news import Base
+from app.config import settings
+from app.models.news import Base
 
 logger = logging.getLogger(__name__)
 

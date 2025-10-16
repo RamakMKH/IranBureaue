@@ -5,8 +5,8 @@ import logging
 import time
 from typing import Optional
 from deep_translator import GoogleTranslator
-from config import settings
-from utils.proxy import proxy_manager
+from app.config import settings
+from app.utils.proxy import proxy_manager
 
 logger = logging.getLogger(__name__)
 

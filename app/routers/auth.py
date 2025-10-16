@@ -6,9 +6,9 @@ import logging
 from fastapi import APIRouter, HTTPException, Request, Response, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from schemas.news import AuthRequest
-from services.auth import auth_service
-from config import settings
+from app.schemas.news import AuthRequest
+from app.services.auth import auth_service
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 

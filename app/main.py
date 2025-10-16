@@ -11,14 +11,14 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from config import settings
-from routers import auth, news, admin
-from services.crawler import crawler_service
-from services.translator import translation_service
-from repositories.news_repository import NewsRepository
-from services.telegram import telegram_service
-from models.news import NewsStatus
-from database import SessionLocal
+from app.config import settings
+from app.routers import auth, news, admin
+from app.services.crawler import crawler_service
+from app.services.translator import translation_service
+from app.repositories.news_repository import NewsRepository
+from app.services.telegram import telegram_service
+from app.models.news import NewsStatus
+from app.database import SessionLocal
 
 # Configure logging
 logging.basicConfig(
