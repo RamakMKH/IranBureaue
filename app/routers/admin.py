@@ -373,7 +373,7 @@ async def auto_translate_pending(
 
 
 # ============================================
-# Logs Operations
+# FIXED: Logs Operations Section
 # ============================================
 
 @router.get("/logs")
@@ -387,145 +387,192 @@ async def get_logs(current_user: str = Depends(get_current_user)):
             return "Log file not found"
         
         with open(settings.LOG_FILE, "r", encoding="utf-8") as f:
-            logs = f.readlines()[-50:]
-        
-        return "".join(logs)
+            logs = f.readlines()[-50:]  # ← FIXED: Get last 50 lines
+            return "".join(logs)
         
     except Exception as e:
         logger.error(f"❌ Error reading logs: {e}")
         return f"Error reading logs: {str(e)}"
 
 
-@router.get("/logs_full")
-async def get_logs_full(
-    lines: int = Query(50, ge=1, le=1000, description="Number of lines"),
-    level: str = Query("all", regex="^(all|INFO|WARNING|ERROR)$", description="Log level"),
-    search: str = Query("", max_length=200, description="Search term"),
+@router.get("/logs_advanced")
+async def get_logs_advanced(
+    lines: int = Query(50, ge=1, le=1000),
+    level: str = Query("all", regex="^(all|INFO|WARNING|ERROR)$"),
+    search: str = Query("", max_length=200),
     current_user: str = Depends(get_current_user)
 ):
     """
-    Get logs with filtering and statistics
+    Get logs with advanced filtering
     
     - **lines**: Number of lines to return (1-1000)
     - **level**: Filter by log level (all, INFO, WARNING, ERROR)
     - **search**: Search term to filter logs
     """
     try:
-        log_data = LogAnalyzer.read_logs(
-            lines=lines,
-            level=level,
-            search=search
-        )
+        if not os.path.exists(settings.LOG_FILE):
+            return {
+                "logs": "Log file not found",
+                "stats": {}
+            }
         
-        return log_data
+        # Use LogAnalyzer for advanced features
+        analyzer = LogAnalyzer(settings.LOG_FILE)
+        
+        # Get filtered logs
+        if search:
+            logs = analyzer.search_logs(search, max_lines=lines)
+        else:
+            logs = analyzer.get_recent_logs(lines=lines, level=level if level != "all" else None)
+        
+        # Get statistics
+        stats = analyzer.get_log_stats()
+        
+        return {
+            "logs": "\n".join(logs),
+            "stats": stats
+        }
         
     except Exception as e:
-        logger.error(f"❌ Error reading logs: {e}")
+        logger.error(f"❌ Error reading advanced logs: {e}")
         return {
-            "logs": f"Error reading logs: {str(e)}",
-            "stats": {
-                "total_lines": 0,
-                "displayed_lines": 0,
-                "info_count": 0,
-                "warning_count": 0,
-                "error_count": 0
-            }
+            "logs": f"Error: {str(e)}",
+            "stats": {}
         }
 
 
-@router.post("/clear_logs")
-async def clear_logs(current_user: str = Depends(get_current_user)):
+@router.delete("/clear_logs")
+async def clear_logs(
+    keep_lines: int = Query(100, ge=0, le=1000),
+    current_user: str = Depends(get_current_user)
+):
     """
-    Clear system logs
-    Deletes the log file and creates a new one
+    Clear log file, optionally keeping recent lines
+    
+    - **keep_lines**: Number of recent lines to keep (0 to clear all)
     """
     try:
-        success = LogAnalyzer.clear_logs()
+        if not os.path.exists(settings.LOG_FILE):
+            return SuccessResponse(
+                status="info",
+                message="Log file does not exist"
+            )
         
-        if success:
-            logger.info(f"🧹 Log file cleared by {current_user}")
+        if keep_lines > 0:
+            # Keep recent lines
+            with open(settings.LOG_FILE, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+                keep = lines[-keep_lines:]
+            
+            with open(settings.LOG_FILE, "w", encoding="utf-8") as f:
+                f.writelines(keep)
+            
+            logger.warning(f"🗑️ Logs cleared, kept last {keep_lines} lines by {current_user}")
+            
             return SuccessResponse(
                 status="success",
-                message="Logs cleared successfully"
+                message=f"Cleared logs, kept {keep_lines} recent lines"
             )
         else:
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to clear logs"
+            # Clear all
+            with open(settings.LOG_FILE, "w", encoding="utf-8") as f:
+                f.write("")
+            
+            logger.warning(f"🗑️ All logs cleared by {current_user}")
+            
+            return SuccessResponse(
+                status="success",
+                message="All logs cleared"
             )
         
     except Exception as e:
         logger.error(f"❌ Error clearing logs: {e}")
         raise HTTPException(
-            status_code=500, 
-            detail="Failed to clear logs"
-        )
-
-
-@router.get("/download_logs")
-async def download_logs(current_user: str = Depends(get_current_user)):
-    """
-    Download log file
-    Returns the complete log file for download
-    """
-    try:
-        if not os.path.exists(settings.LOG_FILE):
-            raise HTTPException(
-                status_code=404, 
-                detail="Log file not found"
-            )
-        
-        with open(settings.LOG_FILE, "r", encoding="utf-8") as f:
-            content = f.read()
-        
-        filename = f"system_logs_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.log"
-        
-        logger.info(f"📥 Log file downloaded by {current_user}")
-        
-        return Response(
-            content=content,
-            media_type="text/plain; charset=utf-8",
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}"
-            }
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Error downloading logs: {e}")
-        raise HTTPException(
-            status_code=500, 
-            detail="Failed to download logs"
-        )
-
-
-@router.get("/recent_errors")
-async def get_recent_errors(
-    limit: int = Query(10, ge=1, le=50, description="Number of errors"),
-    current_user: str = Depends(get_current_user)
-):
-    """
-    Get recent error messages from logs
-    
-    - **limit**: Number of recent errors to return (1-50)
-    """
-    try:
-        errors = LogAnalyzer.get_recent_errors(limit=limit)
-        
-        return {
-            "count": len(errors),
-            "errors": errors
-        }
-        
-    except Exception as e:
-        logger.error(f"❌ Error fetching recent errors: {e}")
-        raise HTTPException(
             status_code=500,
-            detail="Failed to fetch recent errors"
+            detail=f"Failed to clear logs: {str(e)}"
         )
 
 
+# ============================================
+# FIXED: Test Connection Function
+# ============================================
+
+@router.get("/test_connection")
+async def test_connection(current_user: str = Depends(get_current_user)):
+    """
+    Test connections to external services
+    Tests: Webz.io, Telegram, Translation, Gemini AI
+    """
+    try:
+        logger.info("🔌 Testing connections to external services...")
+        
+        # Test Webz.io
+        webz_status = False
+        try:
+            from app.utils.proxy import proxy_manager
+            session = proxy_manager.create_session(timeout=10)
+            test_url = (
+                f"https://api.webz.io/newsApiLite?"
+                f"token={settings.WEBZ_API_KEYS[0] if settings.WEBZ_API_KEYS else 'test'}&"
+                f"q=test&language=english&size=1"
+            )
+            response = session.get(test_url, timeout=10)
+            webz_status = response.status_code == 200
+            logger.info(f"🌐 Webz.io: {'✅ OK' if webz_status else '❌ Failed'}")
+        except Exception as e:
+            logger.error(f"❌ Webz.io test failed: {e}")
+        
+        # Test Telegram
+        telegram_status = False
+        try:
+            telegram_status = telegram_service.test_connection()
+            logger.info(f"📱 Telegram: {'✅ OK' if telegram_status else '❌ Failed'}")
+        except Exception as e:
+            logger.error(f"❌ Telegram test failed: {e}")
+        
+        # Test Translation
+        translation_status = False
+        try:
+            test_text = translation_service.translate("Hello", "fa")
+            translation_status = bool(test_text)
+            logger.info(f"🌐 Translation: {'✅ OK' if translation_status else '❌ Failed'}")
+        except Exception as e:
+            logger.error(f"❌ Translation test failed: {e}")
+        
+        # Test Gemini AI
+        gemini_status = False
+        if settings.GEMINI_API_KEYS and settings.GEMINI_API_KEYS[0]:
+            try:
+                from app.utils.proxy import proxy_manager
+                session = proxy_manager.create_session(timeout=10)
+                url = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent"
+                params = {"key": settings.GEMINI_API_KEYS[0]}
+                payload = {
+                    "contents": [{
+                        "parts": [{"text": "Say OK only"}]
+                    }]
+                }
+                response = session.post(url, params=params, json=payload, timeout=10)
+                gemini_status = response.status_code == 200
+                logger.info(f"🤖 Gemini AI: {'✅ OK' if gemini_status else '❌ Failed'}")
+            except Exception as e:
+                logger.error(f"❌ Gemini test failed: {e}")
+        
+        return ConnectionTestResponse(
+            webz_io=webz_status,
+            telegram=telegram_status,
+            translation=translation_status,
+            gemini_ai=gemini_status,
+            timestamp=datetime.now().isoformat()
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Connection test error: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail="Connection test failed"
+        )
+        
 # ============================================
 # Maintenance & Utilities
 # ============================================
