@@ -4,7 +4,7 @@ Setup and utility scripts for News Management System
 """
 import os
 import sys
-from passlib.context import CryptContext
+import bcrypt
 
 
 def generate_password_hash():
@@ -23,12 +23,14 @@ def generate_password_hash():
     if len(password) < 8:
         print("⚠️  Warning: Password is too short (minimum 8 characters recommended)")
     
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    hashed = pwd_context.hash(password)
+    # استفاده مستقیم از bcrypt
+    password_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(password_bytes, salt)
     
     print("\n✅ Password hashed successfully!")
     print("\nAdd this to your .env file:")
-    print(f"ADMIN_PASSWORD_HASH={hashed}")
+    print(f"ADMIN_PASSWORD_HASH={hashed.decode('utf-8')}")
     print()
 
 
