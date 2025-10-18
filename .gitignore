@@ -54,3 +54,4 @@ tmp/
 # Backups
 *.bak
 backup_*/
+news.db.backup
