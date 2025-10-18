@@ -136,11 +136,32 @@ def init_database():
     print("="*50 + "\n")
     
     try:
-        from app.database import init_database
-        init_database()
+        # Import directly without going through config validation
+        from sqlalchemy import create_engine
+        from app.models.news import Base
+        
+        # Create engine
+        engine = create_engine(
+            'sqlite:///news.db',
+            connect_args={'check_same_thread': False}
+        )
+        
+        # Create all tables
+        Base.metadata.create_all(bind=engine)
+        
         print("✅ Database initialized successfully!")
+        print("📊 Database file: news.db")
+        
+        # Verify tables
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        print(f"📋 Tables created: {', '.join(tables)}")
+        
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 
