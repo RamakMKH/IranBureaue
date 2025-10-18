@@ -8,7 +8,7 @@ import sys
 from typing import List, Dict, Optional
 from datetime import datetime
 from pathlib import Path
-from config import settings
+from app.config import settings
 
 
 # ============================================

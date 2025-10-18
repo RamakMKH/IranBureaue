@@ -295,7 +295,7 @@ class SuccessResponse(BaseModel):
 class LogQueryParams(BaseModel):
     """Log query parameters"""
     lines: int = Field(50, ge=1, le=1000, description="Number of lines")
-    level: str = Field("all", regex="^(all|INFO|WARNING|ERROR)$", description="Log level")
+    level: str = Field("all", pattern="^(all|INFO|WARNING|ERROR)$", description="Log level")
     search: str = Field("", max_length=200, description="Search term")
 
 

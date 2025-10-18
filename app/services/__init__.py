@@ -5,7 +5,6 @@
 Business logic services
 """
 from .auth import auth_service
-from .crawler import crawler_service
 from .translator import translation_service
 from .telegram import telegram_service
 

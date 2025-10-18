@@ -1,162 +1,201 @@
 """
 Authentication service with session management
+Handles user authentication, session creation, and session validation
 """
 import secrets
 import logging
+import bcrypt
 from datetime import datetime, timedelta
 from typing import Optional, Dict
-from passlib.context import CryptContext
-from config import settings
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class AuthService:
-    """Handles authentication and session management"""
+    """
+    Handles authentication and session management
+    Uses bcrypt for password hashing and token-based sessions
+    """
     
     def __init__(self):
-        try:
-            self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        except Exception as e:
-            logger.error(f"Failed to initialize bcrypt: {e}")
-            raise ValueError(f"Bcrypt initialization failed. Ensure bcrypt 4.0.1+ is installed")
-        
+        """Initialize authentication service"""
         self.admin_username = settings.ADMIN_USERNAME
         self.admin_password_hash = settings.ADMIN_PASSWORD_HASH
         self.active_sessions: Dict[str, dict] = {}
         self.session_expire_hours = settings.SESSION_EXPIRE_HOURS
+        
+        logger.info("🔐 AuthService initialized")
     
-    def verify_credentials(self, username: str, password: str) -> bool:
+    def authenticate(self, username: str, password: str) -> bool:
         """
-        Verify user credentials
+        بررسی username و password
         
         Args:
-            username: Username
-            password: Plain text password
+            username: نام کاربری
+            password: رمز عبور (plain text)
             
         Returns:
-            True if credentials are valid
+            True اگر اعتبارسنجی موفق باشد، False در غیر این صورت
         """
         try:
-            # Check username
+            # بررسی username
             if username != self.admin_username:
-                logger.warning(f"Invalid username attempt: {username}")
+                logger.warning(f"❌ Invalid username attempt: {username}")
                 return False
             
-            # Verify password against stored hash
-            is_valid = self.pwd_context.verify(password, self.admin_password_hash)
+            # کار با bcrypt - بررسی password با hash ذخیره شده
+            password_bytes = password.encode('utf-8')
+            hash_bytes = self.admin_password_hash.encode('utf-8')
+            
+            # برگرداندن True/False
+            is_valid = bcrypt.checkpw(password_bytes, hash_bytes)
             
             if is_valid:
-                logger.info(f"Successful login for user: {username}")
+                logger.info(f"✅ Successful authentication for user: {username}")
             else:
-                logger.warning(f"Invalid password for user: {username}")
+                logger.warning(f"❌ Invalid password for user: {username}")
             
             return is_valid
             
         except Exception as e:
-            logger.error(f"Credential verification error: {e}")
+            logger.error(f"❌ Authentication error: {e}")
             return False
     
     def create_session(self, username: str) -> str:
         """
-        Create a new session
+        ساخت token امن و ذخیره session در حافظه
         
         Args:
-            username: Username
+            username: نام کاربری برای ساخت session
             
         Returns:
-            Session ID (secure token)
+            token امن (رشته تصادفی)
         """
-        session_id = secrets.token_urlsafe(32)
+        # ساخت token امن
+        session_token = secrets.token_urlsafe(32)
         
-        self.active_sessions[session_id] = {
+        # ذخیره session در حافظه
+        self.active_sessions[session_token] = {
             "username": username,
             "created_at": datetime.now(),
             "last_activity": datetime.now()
         }
         
-        logger.info(f"Session created for user: {username}")
-        return session_id
+        logger.info(f"✅ Session created for user: {username} (token: {session_token[:10]}...)")
+        
+        # برگرداندن token
+        return session_token
     
-    def verify_session(self, session_id: str) -> Optional[str]:
+    def verify_session(self, token: str) -> bool:
         """
-        Verify and update session
+        بررسی معتبر بودن token و چک کردن انقضا
         
         Args:
-            session_id: Session ID to verify
+            token: Session token برای بررسی
             
         Returns:
-            Username if session is valid, None otherwise
+            True اگر session معتبر باشد، False در غیر این صورت
         """
-        if not session_id or session_id not in self.active_sessions:
-            return None
+        # بررسی معتبر بودن token
+        if not token or token not in self.active_sessions:
+            return False
         
-        session_data = self.active_sessions[session_id]
+        session_data = self.active_sessions[token]
         
-        # Check expiration
+        # چک کردن انقضا
         created_at = session_data["created_at"]
         age = datetime.now() - created_at
         
         if age.total_seconds() > self.session_expire_hours * 3600:
-            # Session expired
-            logger.info(f"Session expired: {session_id[:10]}...")
-            self.destroy_session(session_id)
-            return None
+            # Session منقضی شده
+            logger.info(f"⏰ Session expired: {token[:10]}...")
+            self.delete_session(token)
+            # برگرداندن False
+            return False
         
-        # Update last activity
+        # بروزرسانی آخرین فعالیت
         session_data["last_activity"] = datetime.now()
         
-        return session_data["username"]
+        # برگرداندن True
+        return True
     
-    def destroy_session(self, session_id: str) -> bool:
+    def delete_session(self, session_token: str) -> bool:
         """
-        Destroy a session
+        حذف session (خروج از سیستم)
         
         Args:
-            session_id: Session ID to destroy
+            session_token: Session token برای حذف
             
         Returns:
-            True if session was destroyed
+            True اگر session حذف شد، False اگر وجود نداشت
         """
-        if session_id in self.active_sessions:
-            username = self.active_sessions[session_id]["username"]
-            del self.active_sessions[session_id]
-            logger.info(f"Session destroyed for user: {username}")
+        if session_token in self.active_sessions:
+            username = self.active_sessions[session_token]["username"]
+            del self.active_sessions[session_token]
+            logger.info(f"🚪 Session deleted for user: {username}")
             return True
         return False
     
     def cleanup_expired_sessions(self):
-        """Remove expired sessions"""
+        """
+        پاکسازی تمام session های منقضی شده
+        این تابع باید به صورت دوره‌ای اجرا شود
+        """
         now = datetime.now()
         expired = []
         
-        for session_id, data in self.active_sessions.items():
+        for session_token, data in self.active_sessions.items():
             age = now - data["created_at"]
             if age.total_seconds() > self.session_expire_hours * 3600:
-                expired.append(session_id)
+                expired.append(session_token)
         
-        for session_id in expired:
-            self.destroy_session(session_id)
+        for session_token in expired:
+            self.delete_session(session_token)
         
         if expired:
-            logger.info(f"Cleaned up {len(expired)} expired sessions")
+            logger.info(f"🧹 Cleaned up {len(expired)} expired sessions")
     
     def get_active_sessions_count(self) -> int:
-        """Get number of active sessions"""
+        """
+        دریافت تعداد session های فعال
+        
+        Returns:
+            تعداد session های فعال
+        """
         return len(self.active_sessions)
+    
+    def get_session_username(self, session_token: str) -> Optional[str]:
+        """
+        دریافت نام کاربری مرتبط با session
+        
+        Args:
+            session_token: Session token
+            
+        Returns:
+            نام کاربری اگر session معتبر باشد، None در غیر این صورت
+        """
+        if not self.verify_session(session_token):
+            return None
+        
+        return self.active_sessions[session_token]["username"]
     
     def hash_password(self, password: str) -> str:
         """
-        Hash a password (utility method)
+        تبدیل password به hash با bcrypt
+        (تابع کمکی برای ساخت hash برای کاربران جدید)
         
         Args:
-            password: Plain text password
+            password: رمز عبور plain text
             
         Returns:
-            Hashed password
+            رمز عبور hash شده با bcrypt
         """
-        return self.pwd_context.hash(password)
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt(rounds=12)
+        hashed = bcrypt.hashpw(password_bytes, salt)
+        return hashed.decode('utf-8')
 
 
-# Singleton instance
+# ساخت نمونه واحد (Singleton)
 auth_service = AuthService()

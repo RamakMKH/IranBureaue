@@ -1,33 +1,39 @@
 """
-News crawler service using Webz.io API
-Handles news collection, deduplication, and scoring
+Async News crawler service using Webz.io API
+Handles news collection, deduplication, and scoring with async/await
 """
 import logging
-import time
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from bs4 import BeautifulSoup
 from fuzzywuzzy import fuzz
 from sqlalchemy.orm import Session
 
-from config import settings
-from models.news import News, NewsStatus
-from repositories.news_repository import NewsRepository
-from utils.proxy import proxy_manager
-from utils.scoring import news_scorer
+from app.config import settings
+from app.models.news import News, NewsStatus
+from app.repositories.news_repository import NewsRepository
+from app.utils.proxy import async_proxy_manager
+from app.utils.scoring import news_scorer
 
 logger = logging.getLogger(__name__)
 
 
-class CrawlerService:
-    """Handles news crawling from Webz.io"""
+class AsyncCrawlerService:
+    """
+    Async crawler service for Webz.io API
+    Uses aiohttp for concurrent HTTP requests
+    """
     
     def __init__(self):
-        self.api_keys = settings.WEBZ_API_KEYS
+        """Initialize async crawler service"""
+        self.api_keys = settings.webz_api_keys_list  # Use property method
         self.current_key_index = 0
         self.base_url = "https://api.webz.io/newsApiLite"
+        
+        logger.info(f"🕷️ Async Crawler initialized with {len(self.api_keys)} API keys")
     
-    def crawl_news(
+    async def crawl_news(
         self,
         db: Session,
         language: str = "english",
@@ -36,14 +42,14 @@ class CrawlerService:
         limit: int = 100
     ) -> List[News]:
         """
-        Crawl news for a specific language and date
+        Crawl news asynchronously
         
         Args:
             db: Database session
             language: News language
-            specific_date: Specific date in ISO format (YYYY-MM-DD)
+            specific_date: Specific date (YYYY-MM-DD)
             max_pages: Maximum pages to fetch
-            limit: Maximum results to return
+            limit: Maximum results
             
         Returns:
             List of collected news articles
@@ -55,8 +61,8 @@ class CrawlerService:
             try:
                 start_date = datetime.fromisoformat(specific_date).replace(tzinfo=timezone.utc)
                 end_date = start_date + timedelta(days=1)
-            except ValueError as e:
-                logger.error(f"Invalid date format: {specific_date}")
+            except ValueError:
+                logger.error(f"❌ Invalid date format: {specific_date}")
                 return []
         else:
             start_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -66,36 +72,48 @@ class CrawlerService:
         query = f"iran category:politics language:{language}"
         timestamp = int(start_date.timestamp() * 1000)
         
-        # Make initial request
-        url = f"{self.base_url}?token={self._get_current_token()}&q={query}&ts={timestamp}&highlight=true"
+        # Build URL
+        url = (
+            f"{self.base_url}?"
+            f"token={self._get_current_token()}&"
+            f"q={query}&"
+            f"ts={timestamp}&"
+            f"highlight=true"
+        )
         
         try:
-            session = proxy_manager.create_session(timeout=settings.CRAWLER_TIMEOUT)
-            response = session.get(url, timeout=settings.CRAWLER_TIMEOUT)
+            # Create async session
+            session = await async_proxy_manager.create_session(
+                timeout=settings.CRAWLER_TIMEOUT
+            )
             
-            if response.status_code != 200:
-                logger.error(f"Webz.io API error: {response.status_code}")
-                self._rotate_token()
-                return []
-            
-            data = response.json()
-            
-            # Log quota
-            if 'requestsLeft' in data:
-                logger.info(f"Webz.io quota remaining: {data['requestsLeft']}")
-            
-            # Process results
-            news_list = self._process_response(data, language, repo, max_pages, limit, session)
-            
-            logger.info(f"Collected {len(news_list)} news articles for {language}")
-            return news_list
-            
+            async with session:
+                async with session.get(url) as response:
+                    if response.status != 200:
+                        logger.error(f"❌ Webz.io API error: {response.status}")
+                        self._rotate_token()
+                        return []
+                    
+                    data = await response.json()
+                    
+                    # Log quota
+                    if 'requestsLeft' in data:
+                        logger.info(f"📊 Webz.io quota: {data['requestsLeft']}")
+                    
+                    # Process results
+                    news_list = await self._process_response(
+                        data, language, repo, max_pages, limit, session
+                    )
+                    
+                    logger.info(f"✅ Collected {len(news_list)} articles for {language}")
+                    return news_list
+                    
         except Exception as e:
-            logger.error(f"Crawler error: {e}")
+            logger.error(f"❌ Crawler error: {e}")
             self._rotate_token()
             return []
     
-    def advanced_crawl(
+    async def advanced_crawl(
         self,
         db: Session,
         date_from: datetime,
@@ -106,59 +124,69 @@ class CrawlerService:
         limit: int = 20
     ) -> List[News]:
         """
-        Advanced crawl with custom date range and keywords
+        Advanced async crawl with date range and keywords
         
         Args:
             db: Database session
             date_from: Start date
             date_to: End date
             language: News language
-            keywords: Optional keywords (comma-separated)
-            max_pages: Maximum pages per day
-            limit: Maximum results
+            keywords: Optional keywords
+            max_pages: Max pages per day
+            limit: Max total results
             
         Returns:
-            List of collected news articles
+            List of collected news
         """
         repo = NewsRepository(db)
         all_news = []
         current_date = date_from.replace(tzinfo=timezone.utc)
         date_to = date_to.replace(tzinfo=timezone.utc)
         
-        while current_date <= date_to and len(all_news) < limit:
-            try:
-                # Build query with keywords
-                query = self._build_advanced_query(language, keywords)
-                timestamp = int(current_date.timestamp() * 1000)
-                
-                url = f"{self.base_url}?token={self._get_current_token()}&q={query}&ts={timestamp}&highlight=true"
-                
-                session = proxy_manager.create_session(timeout=settings.CRAWLER_TIMEOUT)
-                response = session.get(url, timeout=settings.CRAWLER_TIMEOUT)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    news_list = self._process_response(
-                        data, language, repo, max_pages, 
-                        limit - len(all_news), session
-                    )
-                    all_news.extend(news_list)
-                    
-                    logger.info(f"Collected {len(news_list)} news for {current_date.date()}")
-                else:
-                    logger.warning(f"API error for {current_date.date()}: {response.status_code}")
-                
-            except Exception as e:
-                logger.error(f"Error crawling {current_date.date()}: {e}")
-            
-            # Move to next day
-            current_date += timedelta(days=1)
-            time.sleep(1)  # Rate limiting
+        # Create session once for all requests
+        session = await async_proxy_manager.create_session(
+            timeout=settings.CRAWLER_TIMEOUT
+        )
         
-        logger.info(f"Advanced crawl completed: {len(all_news)} total articles")
+        async with session:
+            while current_date <= date_to and len(all_news) < limit:
+                try:
+                    # Build query
+                    query = self._build_advanced_query(language, keywords)
+                    timestamp = int(current_date.timestamp() * 1000)
+                    
+                    url = (
+                        f"{self.base_url}?"
+                        f"token={self._get_current_token()}&"
+                        f"q={query}&"
+                        f"ts={timestamp}&"
+                        f"highlight=true"
+                    )
+                    
+                    async with session.get(url) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            news_list = await self._process_response(
+                                data, language, repo, max_pages,
+                                limit - len(all_news), session
+                            )
+                            all_news.extend(news_list)
+                            
+                            logger.info(f"📅 {current_date.date()}: {len(news_list)} articles")
+                        else:
+                            logger.warning(f"⚠️ API error for {current_date.date()}: {response.status}")
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error crawling {current_date.date()}: {e}")
+                
+                # Move to next day
+                current_date += timedelta(days=1)
+                await asyncio.sleep(1)  # Rate limiting
+        
+        logger.info(f"✅ Advanced crawl: {len(all_news)} total articles")
         return all_news
     
-    def _process_response(
+    async def _process_response(
         self,
         response_data: dict,
         language: str,
@@ -167,7 +195,7 @@ class CrawlerService:
         limit: int,
         session
     ) -> List[News]:
-        """Process Webz.io API response"""
+        """Process API response asynchronously"""
         news_list = []
         next_url = response_data.get('next')
         page_count = 0
@@ -190,7 +218,7 @@ class CrawlerService:
                         news_list.append(saved)
                         
                 except Exception as e:
-                    logger.error(f"Error processing post: {e}")
+                    logger.error(f"❌ Error processing post: {e}")
                     continue
             
             # Fetch next page
@@ -199,12 +227,12 @@ class CrawlerService:
                     if not next_url.startswith(('http://', 'https://')):
                         next_url = f"https://api.webz.io{next_url}"
                     
-                    response = session.get(next_url, timeout=settings.CRAWLER_TIMEOUT)
-                    response_data = response.json()
-                    next_url = response_data.get('next')
+                    async with session.get(next_url) as response:
+                        response_data = await response.json()
+                        next_url = response_data.get('next')
                     
                 except Exception as e:
-                    logger.error(f"Pagination error: {e}")
+                    logger.error(f"❌ Pagination error: {e}")
                     break
         
         return news_list
@@ -222,8 +250,14 @@ class CrawlerService:
             clean_highlight = soup.get_text()
             
             # Parse date
-            published_str = post['published'].replace('Z', '')
-            published_date = datetime.fromisoformat(published_str)
+            published_str = post['published'].replace('Z', '+00:00')
+            if '.' in published_str:
+                published_str = published_str.split('.')[0] + '+00:00'
+            
+            try:
+                published_date = datetime.fromisoformat(published_str)
+            except:
+                published_date = datetime.now(timezone.utc)
             
             # Calculate score
             categories = post.get('categories', [])
@@ -237,46 +271,61 @@ class CrawlerService:
             
             # Check for duplicates
             if self._is_duplicate(post['title'], clean_highlight, recent_news):
-                logger.debug(f"Skipping duplicate: {post['title'][:50]}")
+                logger.debug(f"⏭️ Duplicate: {post['title'][:50]}")
                 return None
             
-            # Check minimum score threshold
+            # Check minimum score
             if score < 0.3:
-                logger.debug(f"Skipping low score ({score}): {post['title'][:50]}")
+                logger.debug(f"⏭️ Low score ({score:.2f}): {post['title'][:50]}")
                 return None
             
-            # Log high priority news
-            if news_scorer.is_high_priority(score):
-                logger.info(f"High priority news (score: {score}): {post['title']}")
+            # Log high priority
+            if score > 0.7:
+                logger.info(f"⭐ High score ({score:.2f}): {post['title'][:60]}")
             
             # Create News object
             return News(
                 title=post['title'],
                 highlight_text=clean_highlight,
+                url=post['url'],
                 published=published_date,
                 domain_rank=post['thread'].get('domain_rank'),
-                categories=','.join(categories),
-                sentiment=post.get('sentiment', ''),
+                categories=','.join(categories) if categories else None,
+                sentiment=post.get('sentiment'),
                 language=language,
-                url=post['url'],
                 score=score,
-                status=NewsStatus.COLLECTED
+                status=NewsStatus.COLLECTED,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
             )
             
         except Exception as e:
-            logger.error(f"Error creating news from post: {e}")
+            logger.error(f"❌ Error creating news from post: {e}")
             return None
     
-    def _is_duplicate(self, title: str, highlight: str, recent_news: List[News]) -> bool:
-        """Check if news is duplicate using fuzzy matching"""
-        combined_text = f"{title} {highlight}"
-        
-        for existing in recent_news:
-            existing_text = f"{existing.title} {existing.highlight_text}"
-            similarity = fuzz.ratio(combined_text, existing_text)
+    def _is_duplicate(
+        self,
+        title: str,
+        highlight: str,
+        recent_news: List[News]
+    ) -> bool:
+        """Check for duplicates using fuzzy matching"""
+        for news in recent_news:
+            # Title similarity
+            title_similarity = fuzz.ratio(title.lower(), news.title.lower())
             
-            if similarity > 80:
+            if title_similarity > 85:
                 return True
+            
+            # Highlight similarity
+            if news.highlight_text and highlight:
+                highlight_similarity = fuzz.partial_ratio(
+                    highlight.lower()[:200],
+                    news.highlight_text.lower()[:200]
+                )
+                
+                if highlight_similarity > 80:
+                    return True
         
         return False
     
@@ -295,13 +344,18 @@ class CrawlerService:
     
     def _get_current_token(self) -> str:
         """Get current API token"""
+        if not self.api_keys:
+            logger.error("❌ No API keys configured!")
+            return ""
         return self.api_keys[self.current_key_index]
     
     def _rotate_token(self):
         """Rotate to next API token"""
+        if not self.api_keys:
+            return
         self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
-        logger.info(f"Rotated to API key index: {self.current_key_index}")
+        logger.info(f"🔄 Rotated to API key index: {self.current_key_index}")
 
 
 # Singleton instance
-crawler_service = CrawlerService()
+async_crawler_service = AsyncCrawlerService()

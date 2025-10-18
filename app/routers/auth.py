@@ -1,112 +1,243 @@
 """
-Authentication routes
-Handles login, logout, and session management
+Authentication router
+Handles login, logout, and session management routes
 """
-import logging
-from fastapi import APIRouter, HTTPException, Request, Response, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
-
+from fastapi import APIRouter, Request, Response, HTTPException, Cookie
+from fastapi.responses import RedirectResponse, FileResponse
+from typing import Optional
+from app.config import settings
 from app.schemas.news import AuthRequest
 from app.services.auth import auth_service
-from app.config import settings
+import logging
 
 logger = logging.getLogger(__name__)
 
-# Use SECRET_PATH from config instead of hardcoded value
-router = APIRouter(prefix=f"/{settings.SECRET_PATH}", tags=["authentication"])
+# Create router instance - این خط خیلی مهمه!
+router = APIRouter()
 
 
-def get_current_user(request: Request) -> str:
+@router.get("/{secret_path}/")
+async def login_page(secret_path: str, request: Request):
     """
-    Dependency to get current authenticated user
-    Raises 401 if not authenticated
+    Serve login page
+    
+    Args:
+        secret_path: Secret path segment for security
+        request: FastAPI request object
+        
+    Returns:
+        Login page HTML
     """
-    session_id = request.cookies.get("session_id")
+    # Verify secret path
+    if secret_path != settings.SECRET_PATH:
+        raise HTTPException(status_code=404, detail="Not found")
     
-    if not session_id:
-        # Redirect HTML requests, raise exception for API requests
-        if request.headers.get("accept") and "text/html" in request.headers.get("accept"):
-            raise HTTPException(status_code=303, headers={"Location": f"/{settings.SECRET_PATH}/"})
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    username = auth_service.verify_session(session_id)
-    
-    if not username:
-        if request.headers.get("accept") and "text/html" in request.headers.get("accept"):
-            raise HTTPException(status_code=303, headers={"Location": f"/{settings.SECRET_PATH}/"})
-        raise HTTPException(status_code=401, detail="Invalid or expired session")
-    
-    return username
+    # Serve login page
+    return FileResponse("static/index.html")
 
 
-@router.get("/", response_class=HTMLResponse)
-async def login_page():
-    """Serve login page"""
-    try:
-        with open("static/index.html", "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    except FileNotFoundError:
-        raise HTTPException(status_code=500, detail="Login page not found")
-
-
-@router.post("/login")
-async def login(auth_request: AuthRequest, response: Response):
+@router.post("/{secret_path}/login")
+async def login(
+    secret_path: str,
+    auth_request: AuthRequest,
+    response: Response
+):
     """
     Handle login request
-    Sets secure session cookie on success
-    """
-    try:
-        # Verify credentials
-        if not auth_service.verify_credentials(auth_request.username, auth_request.password):
-            logger.warning(f"Failed login attempt for: {auth_request.username}")
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-        
-        # Create session
-        session_id = auth_service.create_session(auth_request.username)
-        
-        # Redirect to dashboard with session cookie
-        redirect_response = RedirectResponse(url=f"/{settings.SECRET_PATH}/dashboard", status_code=303)
-        redirect_response.set_cookie(
-            key="session_id",
-            value=session_id,
-            httponly=True,
-            max_age=auth_service.session_expire_hours * 3600,
-            secure=settings.USE_HTTPS,  # Set based on config
-            samesite="lax"
-        )
-        
-        logger.info(f"User {auth_request.username} logged in successfully")
-        return redirect_response
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Login error: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.post("/logout")
-async def logout(request: Request):
-    """
-    Handle logout request
-    Destroys session and clears cookie
-    """
-    session_id = request.cookies.get("session_id")
     
-    if session_id:
-        auth_service.destroy_session(session_id)
+    Args:
+        secret_path: Secret path segment
+        auth_request: Login credentials
+        response: FastAPI response object
+        
+    Returns:
+        Redirect to dashboard on success
+    """
+    # Verify secret path
+    if secret_path != settings.SECRET_PATH:
+        raise HTTPException(status_code=404, detail="Not found")
     
-    redirect_response = RedirectResponse(url=f"/{settings.SECRET_PATH}/", status_code=303)
-    redirect_response.delete_cookie("session_id")
+    # Authenticate user
+    if not auth_service.authenticate(
+        auth_request.username,
+        auth_request.password
+    ):
+        logger.warning(f"❌ Failed login attempt for username: {auth_request.username}")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    logger.info("User logged out")
+    # Create session
+    session_token = auth_service.create_session(auth_request.username)
+    
+    logger.info(f"✅ Successful login for user: {auth_request.username}")
+    
+    # Redirect to dashboard with session cookie
+    redirect_response = RedirectResponse(
+        url=f"/{settings.SECRET_PATH}/dashboard",
+        status_code=303
+    )
+    redirect_response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=settings.USE_HTTPS,
+        samesite="lax",
+        max_age=settings.SESSION_EXPIRE_HOURS * 3600
+    )
+    
     return redirect_response
 
 
-@router.get("/session-info")
-async def session_info(current_user: str = Depends(get_current_user)):
-    """Get current session information (for debugging)"""
+@router.get("/{secret_path}/dashboard")
+async def dashboard_page(
+    secret_path: str,
+    request: Request,
+    session_token: Optional[str] = Cookie(None)
+):
+    """
+    Serve dashboard page
+    
+    Args:
+        secret_path: Secret path segment
+        request: FastAPI request object
+        session_token: Session token from cookie
+        
+    Returns:
+        Dashboard HTML page
+    """
+    # Verify secret path
+    if secret_path != settings.SECRET_PATH:
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    # Verify session
+    if not session_token or not auth_service.verify_session(session_token):
+        logger.warning("⚠️ Unauthorized dashboard access attempt")
+        return RedirectResponse(url=f"/{settings.SECRET_PATH}/", status_code=303)
+    
+    # Serve dashboard HTML
+    return FileResponse("static/dashboard.html")
+
+
+@router.get("/{secret_path}/advanced_crawl")
+async def advanced_crawl_page(
+    secret_path: str,
+    request: Request,
+    session_token: Optional[str] = Cookie(None)
+):
+    """
+    Serve advanced crawl page
+    
+    Args:
+        secret_path: Secret path segment
+        request: FastAPI request object
+        session_token: Session token from cookie
+        
+    Returns:
+        Advanced crawl HTML page
+    """
+    # Verify secret path
+    if secret_path != settings.SECRET_PATH:
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    # Verify session
+    if not session_token or not auth_service.verify_session(session_token):
+        logger.warning("⚠️ Unauthorized advanced_crawl access attempt")
+        return RedirectResponse(url=f"/{settings.SECRET_PATH}/", status_code=303)
+    
+    # Serve advanced crawl HTML
+    return FileResponse("static/advanced_crawl.html")
+
+
+@router.get("/{secret_path}/logs")
+async def logs_page(
+    secret_path: str,
+    request: Request,
+    session_token: Optional[str] = Cookie(None)
+):
+    """
+    Serve logs page
+    
+    Args:
+        secret_path: Secret path segment
+        request: FastAPI request object
+        session_token: Session token from cookie
+        
+    Returns:
+        Logs HTML page
+    """
+    # Verify secret path
+    if secret_path != settings.SECRET_PATH:
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    # Verify session
+    if not session_token or not auth_service.verify_session(session_token):
+        logger.warning("⚠️ Unauthorized logs access attempt")
+        return RedirectResponse(url=f"/{settings.SECRET_PATH}/", status_code=303)
+    
+    # Serve logs HTML
+    return FileResponse("static/logs.html")
+
+
+@router.post("/{secret_path}/logout")
+async def logout(
+    secret_path: str,
+    response: Response,
+    session_token: Optional[str] = Cookie(None)
+):
+    """
+    Handle logout request
+    
+    Args:
+        secret_path: Secret path segment
+        response: FastAPI response object
+        session_token: Session token from cookie
+        
+    Returns:
+        Redirect to login page
+    """
+    # Verify secret path
+    if secret_path != settings.SECRET_PATH:
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    # Delete session
+    if session_token:
+        auth_service.delete_session(session_token)
+        logger.info("👋 User logged out")
+    
+    # Redirect to login page and clear cookie
+    redirect_response = RedirectResponse(
+        url=f"/{settings.SECRET_PATH}/",
+        status_code=303
+    )
+    redirect_response.delete_cookie(key="session_token")
+    
+    return redirect_response
+
+
+@router.get("/{secret_path}/verify-session")
+async def verify_session_endpoint(
+    secret_path: str,
+    session_token: Optional[str] = Cookie(None)
+):
+    """
+    Verify if session is valid (API endpoint)
+    
+    Args:
+        secret_path: Secret path segment
+        session_token: Session token from cookie
+        
+    Returns:
+        JSON with session validity status
+    """
+    # Verify secret path
+    if secret_path != settings.SECRET_PATH:
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    # Check session
+    is_valid = False
+    if session_token:
+        is_valid = auth_service.verify_session(session_token)
+    
     return {
-        "username": current_user,
-        "active_sessions": auth_service.get_active_sessions_count()
+        "valid": is_valid,
+        "message": "Session is valid" if is_valid else "Session is invalid or expired"
     }

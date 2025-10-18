@@ -13,7 +13,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.config import settings
 from app.routers import auth, news, admin
-from app.services.crawler import crawler_service
+from app.services.crawler import async_crawler_service
 from app.services.translator import translation_service
 from app.repositories.news_repository import NewsRepository
 from app.services.telegram import telegram_service
@@ -44,7 +44,7 @@ def scheduled_crawler():
         languages = ['english', 'french', 'arabic', 'chinese']
         for lang in languages:
             try:
-                news_list = crawler_service.crawl_news(
+                news_list = async_crawler_service.crawl_news(
                     db=db,
                     language=lang,
                     max_pages=3,

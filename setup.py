@@ -171,41 +171,118 @@ def test_connections():
     print("🔌 Connection Tests")
     print("="*50 + "\n")
     
+    from dotenv import load_dotenv
+    load_dotenv()
+    
+    # تنظیم پراکسی برای requests
+    socks5_proxy = os.getenv("SOCKS5_PROXY")
+    if socks5_proxy:
+        os.environ['http_proxy'] = socks5_proxy
+        os.environ['https_proxy'] = socks5_proxy
+    
     # Test Telegram
+    print("📱 Testing Telegram...")
     try:
-        from app.services.telegram import telegram_service
-        if telegram_service.test_connection():
-            print("✅ Telegram: Connected")
+        import subprocess
+        import json
+        
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        if bot_token:
+            url = f"https://api.telegram.org/bot{bot_token}/getMe"
+            
+            # استفاده از proxychains برای دور زدن محدودیت
+            result = subprocess.run(
+                ['proxychains', 'curl', '-s', url],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                try:
+                    # پاک کردن خروجی proxychains از نتیجه
+                    output = result.stdout
+                    # پیدا کردن اولین { که شروع JSON است
+                    json_start = output.find('{')
+                    if json_start != -1:
+                        json_output = output[json_start:]
+                        bot_info = json.loads(json_output)
+                        
+                        if bot_info.get("ok"):
+                            username = bot_info.get('result', {}).get('username', 'unknown')
+                            print(f"✅ Telegram: Connected (@{username})")
+                        else:
+                            print("❌ Telegram: Invalid response")
+                    else:
+                        print("❌ Telegram: Could not parse response")
+                except json.JSONDecodeError:
+                    print("❌ Telegram: Invalid JSON response")
+            else:
+                print(f"❌ Telegram: Failed (Return code: {result.returncode})")
         else:
-            print("❌ Telegram: Failed")
+            print("⚠️  Telegram: No token configured")
+    except FileNotFoundError:
+        print("⚠️  Telegram: proxychains not found, skipping test")
+    except subprocess.TimeoutExpired:
+        print("❌ Telegram: Connection timeout")
     except Exception as e:
         print(f"❌ Telegram: Error - {e}")
     
     # Test Webz.io
+    print("🌐 Testing Webz.io...")
     try:
-        from app.config import settings
-        from app.utils.proxy import proxy_manager
         import requests
+        api_keys = os.getenv("WEBZ_API_KEYS", "")
+        keys_list = [k.strip() for k in api_keys.split(",") if k.strip()]
         
-        session = proxy_manager.create_session(timeout=10)
-        url = f"https://api.webz.io/newsApiLite?token={settings.WEBZ_API_KEYS[0]}&q=test"
-        response = session.get(url, timeout=10)
-        
-        if response.status_code == 200:
-            print("✅ Webz.io: Connected")
+        if keys_list:
+            proxies = {}
+            socks5_proxy = os.getenv("SOCKS5_PROXY")
+            if socks5_proxy:
+                proxies = {
+                    "http": socks5_proxy,
+                    "https": socks5_proxy
+                }
+            
+            url = f"https://api.webz.io/newsApiLite?token={keys_list[0]}&q=test&language=english&size=1"
+            response = requests.get(url, timeout=10, proxies=proxies)
+            
+            if response.status_code == 200:
+                print("✅ Webz.io: Connected")
+            else:
+                print(f"❌ Webz.io: Failed (Status: {response.status_code})")
         else:
-            print(f"❌ Webz.io: Failed (Status: {response.status_code})")
+            print("⚠️  Webz.io: No API keys configured")
     except Exception as e:
         print(f"❌ Webz.io: Error - {e}")
     
     # Test Translation
+    print("🌍 Testing Translation...")
     try:
-        from app.services.translator import translation_service
-        test_result = translation_service.translate("Hello world", "fa")
-        if test_result:
+        import requests
+        
+        proxies = {}
+        socks5_proxy = os.getenv("SOCKS5_PROXY")
+        if socks5_proxy:
+            proxies = {
+                "http": socks5_proxy,
+                "https": socks5_proxy
+            }
+        
+        url = "https://translate.googleapis.com/translate_a/single"
+        params = {
+            "client": "gtx",
+            "sl": "en",
+            "tl": "fa",
+            "dt": "t",
+            "q": "Hello"
+        }
+        response = requests.get(url, params=params, timeout=10, proxies=proxies)
+        
+        if response.status_code == 200:
             print("✅ Translation: Working")
         else:
-            print("❌ Translation: Failed")
+            print(f"❌ Translation: Failed (Status: {response.status_code})")
     except Exception as e:
         print(f"❌ Translation: Error - {e}")
     

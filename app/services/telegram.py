@@ -4,9 +4,9 @@ Telegram service for publishing news
 import logging
 import random
 from typing import Optional
-from config import settings
-from utils.proxy import proxy_manager
-from models.news import News
+from app.config import settings
+from app.utils.proxy import async_proxy_manager as proxy_manager
+from app.models.news import News
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
 from sqlalchemy.orm import Session
 
-from database import get_db
+from app.database import get_db
 from app.schemas.news import (
     CrawlRequest, 
     AdvancedCrawlRequest, 
@@ -18,14 +18,14 @@ from app.schemas.news import (
     ConnectionTestResponse,
     SuccessResponse
 )
-from app.services.crawler import crawler_service
+from app.services.crawler import async_crawler_service
 from app.services.telegram import telegram_service
 from app.services.translator import translation_service
 from app.repositories.news_repository import NewsRepository
 from app.models.news import NewsStatus
 from app.dependencies import get_current_user
 from app.utils.logging import LogAnalyzer
-from config import settings
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +109,7 @@ async def crawl_by_date(
             f"on {crawl_request.date} by {current_user}"
         )
         
-        news_list = crawler_service.crawl_news(
+        news_list = async_crawler_service.crawl_news(
             db=db,
             language=crawl_request.language,
             specific_date=crawl_request.date,
@@ -177,7 +177,7 @@ async def advanced_crawl(
         if crawl_request.keywords:
             logger.info(f"🔍 Keywords: {crawl_request.keywords}")
         
-        news_list = crawler_service.advanced_crawl(
+        news_list = async_crawler_service.advanced_crawl(
             db=db,
             date_from=date_from,
             date_to=date_to,
@@ -509,7 +509,7 @@ async def test_connection(current_user: str = Depends(get_current_user)):
         # Test Webz.io
         webz_status = False
         try:
-            from app.utils.proxy import proxy_manager
+            from app.utils.proxy import async_proxy_manager as proxy_manager
             session = proxy_manager.create_session(timeout=10)
             test_url = (
                 f"https://api.webz.io/newsApiLite?"
@@ -543,7 +543,7 @@ async def test_connection(current_user: str = Depends(get_current_user)):
         gemini_status = False
         if settings.GEMINI_API_KEYS and settings.GEMINI_API_KEYS[0]:
             try:
-                from app.utils.proxy import proxy_manager
+                from app.utils.proxy import async_proxy_manager as proxy_manager
                 session = proxy_manager.create_session(timeout=10)
                 url = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent"
                 params = {"key": settings.GEMINI_API_KEYS[0]}
@@ -666,7 +666,7 @@ async def test_connection(current_user: str = Depends(get_current_user)):
         # Test Webz.io
         webz_status = False
         try:
-            from app.utils.proxy import proxy_manager
+            from app.utils.proxy import async_proxy_manager as proxy_manager
             session = proxy_manager.create_session(timeout=10)
             test_url = (
                 f"https://api.webz.io/newsApiLite?"
@@ -696,7 +696,7 @@ async def test_connection(current_user: str = Depends(get_current_user)):
         gemini_status = False
         if settings.GEMINI_API_KEYS and settings.GEMINI_API_KEYS[0]:
             try:
-                from app.utils.proxy import proxy_manager
+                from app.utils.proxy import async_proxy_manager as proxy_manager
                 session = proxy_manager.create_session(timeout=10)
                 url = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent"
                 params = {"key": settings.GEMINI_API_KEYS[0]}
@@ -739,7 +739,7 @@ async def get_system_info(
         repo = NewsRepository(db)
         
         # Get crawler status
-        crawler_status = crawler_service.get_api_status()
+        crawler_status = async_crawler_service.get_api_status()
         
         # Get repository stats
         repo_stats = repo.get_statistics()

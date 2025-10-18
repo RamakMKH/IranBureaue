@@ -8,7 +8,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from database import get_db
+from app.database import get_db
 from app.schemas.news import (
     NewsResponse, 
     StatsResponse, 

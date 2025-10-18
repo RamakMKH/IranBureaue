@@ -4,7 +4,6 @@
 """
 Utility functions and helpers
 """
-from .proxy import proxy_manager, ProxyManager
 from .scoring import news_scorer, NewsScorer
 from .logging import setup_logging, get_logger, LogAnalyzer
 

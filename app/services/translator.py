@@ -6,7 +6,7 @@ import time
 from typing import Optional
 from deep_translator import GoogleTranslator
 from app.config import settings
-from app.utils.proxy import proxy_manager
+from app.utils.proxy import async_proxy_manager as proxy_manager
 
 logger = logging.getLogger(__name__)
 
